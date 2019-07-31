@@ -15,6 +15,8 @@ class VarFile:
         self.jobNumber = self.fileName[:8]
         self.jobName = self.fileName[:-4]
         self.jobExt = self.fileName[-4:]
+        self.record_count = 0
+        self.proof_count = 0
 
         # Import file into data frame based on ext
         if self.jobExt == '.txt':
@@ -68,6 +70,12 @@ class VarFile:
                        quoting=QUOTE_ALL,
                        encoding='ISO-8859-1',
                        index=False)
+        self.record_count = len(self.df.index)
+
+        # Check for proofs
+        if self.df['Proofs'].any():
+            self.proof_count = self.df.Proofs.count()
+            self.record_count = len(self.df.index) - self.proof_count
 
     def output_excel(self):
         # Create Excel sheet
@@ -81,6 +89,8 @@ class VarFile:
                                        'bold': 1,
                                        'font_size': 13})
             fmt_head_border = wb.add_format({'top': True})
+            fmt_proof = wb.add_format({'bold': 1,
+                                       'align': 'right'})
 
             # Print specifications
             ws.fit_to_pages(1, 0)  # Fit to 1x1 pages.
@@ -96,7 +106,7 @@ class VarFile:
             ws.set_header(f'&L&16Job #: {self.jobNumber}&11\n\n'
                           f'&\"Calibri,Bold\"Database File: &\"Calibri,Regular\"{self.jobName}.csv'
                           f'&C&\"Calibri,Bold\"&18Variable Checklist&R&16Count: '
-                          f'{str(len(self.df.index))}&11\n\nProcess Date: {now.strftime("%x")}')
+                          f'{str(self.record_count)}&11\n\nProcess Date: {now.strftime("%x")}')
             ws.merge_range('A1:E1', '', fmt_head_border)
 
             # Footer
@@ -104,6 +114,9 @@ class VarFile:
                           '&R&\"Calibri,Bold\"Proof Checked by: _________________________')
 
             # Write data to worksheet
+            if self.proof_count:
+                ws.write('D2', 'PROOFS: ', fmt_proof)
+                ws.write('E2', 'Records 1 - ' + str(self.proof_count + 1))
             ws.write('A3', 'FIELD', fmt_title)
             ws.write('C3', 'SAMPLE', fmt_title)
             ws.write_column('A4', self.head_values)
