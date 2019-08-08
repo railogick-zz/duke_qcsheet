@@ -11,23 +11,27 @@ class VarFile:
 
     def __init__(self, filepath):
         # Set Job information
-        self.fileName = path.basename(filepath)
+        self.filepath = filepath
+        self.fileName = path.basename(self.filepath)
         self.jobNumber = self.fileName[:8]
         self.jobName = self.fileName[:-4]
         self.jobExt = self.fileName[-4:]
 
-        # Import file into data frame based on ext
-        if self.jobExt == '.txt':
+        try:
             self.df = read_csv(filepath,
                                engine='python',
                                quotechar='"',
                                sep='\t',
                                dtype=str)  # dtype str to keep leading 0's
-        else:
-            self.df = read_csv(filepath,
-                               engine='python',
-                               quotechar='"',
-                               dtype=str)  # dtype str to keep leading 0's
+
+        except Exception:
+            try:
+                self.df = read_csv(filepath,
+                                   engine='python',
+                                   quotechar='"',
+                                   dtype=str)  # dtype str to keep leading 0's
+            except Exception:
+                 print(filepath + ' is not formatted properly.')
 
         # Create list of empty columns
         self.empty_columns = self.df.columns[self.df.isna().all()].tolist()
@@ -127,7 +131,6 @@ def main():
         job[idx].process_file()
         job[idx].output_excel()
         del job[idx]
-
 
 if __name__ == '__main__':
     main()
