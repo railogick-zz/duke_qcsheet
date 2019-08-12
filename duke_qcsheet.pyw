@@ -1,9 +1,9 @@
 # Python 3.7.2
 from csv import QUOTE_ALL
 from datetime import datetime
-from os import getcwd, path, listdir
+from os import getcwd, path, listdir, remove
 
-from pandas import read_csv
+from pandas import read_csv, errors
 from xlsxwriter import Workbook
 
 
@@ -11,29 +11,25 @@ class VarFile:
 
     def __init__(self, filepath):
         # Set Job information
-        self.filepath = filepath
-        self.fileName = path.basename(self.filepath)
-        self.jobNumber = self.fileName[:8]
-        self.jobName = self.fileName[:-4]
-        self.jobExt = self.fileName[-4:]
+        self._filepath = filepath
+        self._fileName = path.basename(self._filepath)
+        self._jobNumber = self._fileName[:8]
+        self._jobName = self._fileName[:-4]
+        self._jobExt = self._fileName[-4:]
 
         try:
-            self.df = read_csv(filepath,
+            self.df = read_csv(self._filepath,
+                               engine='python',
+                               quotechar='"',
+                               dtype=str)  # dtype str to keep leading 0's
+        except errors.ParserError:
+            self.df = read_csv(self._filepath,
                                engine='python',
                                quotechar='"',
                                sep='\t',
                                dtype=str)  # dtype str to keep leading 0's
 
-        except Exception:
-            try:
-                self.df = read_csv(filepath,
-                                   engine='python',
-                                   quotechar='"',
-                                   dtype=str)  # dtype str to keep leading 0's
-            except Exception:
-                 print(filepath + ' is not formatted properly.')
-
-        # Create list of empty columns
+        # Create list of empty columns that will be dropped
         self.empty_columns = self.df.columns[self.df.isna().all()].tolist()
 
     def process_file(self):
@@ -66,7 +62,7 @@ class VarFile:
         for x in range(len(self.record)):
             self.record[x] = self.record[x][0:41]
 
-        self.df.to_csv(self.jobName + '.csv',
+        self.df.to_csv(self._jobName + '.csv',
                        sep=',',
                        quotechar='"',
                        quoting=QUOTE_ALL,
@@ -75,7 +71,7 @@ class VarFile:
 
     def output_excel(self):
         # Create Excel sheet
-        with Workbook(f'{self.jobName} Checklist.xlsx') as wb:
+        with Workbook(f'{self._jobName} Checklist.xlsx') as wb:
             ws = wb.add_worksheet()
 
             # Formatting
@@ -97,8 +93,8 @@ class VarFile:
 
             # Header
             ws.set_margins(top=1.125)
-            ws.set_header(f'&L&16Job #: {self.jobNumber}&11\n\n'
-                          f'&\"Calibri,Bold\"Database File: &\"Calibri,Regular\"{self.jobName}.csv'
+            ws.set_header(f'&L&16Job #: {self._jobNumber}&11\n\n'
+                          f'&\"Calibri,Bold\"Database File: &\"Calibri,Regular\"{self._jobName}.csv'
                           f'&C&\"Calibri,Bold\"&18Variable Checklist&R&16Count: '
                           f'{str(len(self.df.index))}&11\n\nProcess Date: {now.strftime("%x")}')
             ws.merge_range('A1:E1', '', fmt_head_border)
@@ -127,10 +123,17 @@ def main():
 
     job = {}
     for idx, file in enumerate(files):
-        job[idx] = VarFile(file)
+        try:
+            job[idx] = VarFile(file)
+            remove(file)
+            pass
+        except Exception:
+            print(file + " is not formatted correctly")
+            continue
         job[idx].process_file()
         job[idx].output_excel()
         del job[idx]
+
 
 if __name__ == '__main__':
     main()
