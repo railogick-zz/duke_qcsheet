@@ -11,6 +11,7 @@ class VarFile:
 
     def __init__(self, filepath):
         # Set Job information
+        self._filepath = filepath
         self._fileName = path.basename(filepath)
         self._jobNumber = self._fileName[:8]
         self._jobName = self._fileName[:-4]
