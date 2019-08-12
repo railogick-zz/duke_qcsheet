@@ -11,10 +11,10 @@ class VarFile:
 
     def __init__(self, filepath):
         # Set Job information
-        self.fileName = path.basename(filepath)
-        self.jobNumber = self.fileName[:8]
-        self.jobName = self.fileName[:-4]
-        self.jobExt = self.fileName[-4:]
+        self._fileName = path.basename(filepath)
+        self._jobNumber = self._fileName[:8]
+        self._jobName = self._fileName[:-4]
+        self._jobExt = self._fileName[-4:]
         self.record_count = 0
         self.proof_count = 0
 
