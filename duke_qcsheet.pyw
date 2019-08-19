@@ -1,11 +1,14 @@
 # Python 3.7.2
 from csv import QUOTE_ALL
 from datetime import datetime
-from os import getcwd, path, listdir, remove
+from os import getcwd, path, listdir
 
 from pandas import read_csv, errors
 from xlsxwriter import Workbook
 
+
+# DONE: Check for unicode errors:
+#      (ie: UnicodeEncodeError: 'latin-1' codec can't encode characters in position 52-55: ordinal not in range(256))
 
 class VarFile:
 
@@ -23,6 +26,7 @@ class VarFile:
             self.df = read_csv(self._filepath,
                                engine='python',
                                quotechar='"',
+                               sep=",",
                                dtype=str)  # dtype str to keep leading 0's
         except errors.ParserError:
             self.df = read_csv(self._filepath,
@@ -36,7 +40,7 @@ class VarFile:
 
     def process_file(self):
         """
-        Generate sample data for excel sheet and output fixed .csv file
+        Cleanup data frame and generate sample data for excel sheet
         """
         self.df.dropna(how='all', inplace=True)
         self.df.dropna(axis=1, how='all', inplace=True)
@@ -64,6 +68,7 @@ class VarFile:
         for x in range(len(self.record)):
             self.record[x] = self.record[x][0:41]
 
+        # Create new .csv file
         self.df.to_csv(self._jobName + '.csv',
                        sep=',',
                        quotechar='"',
@@ -71,7 +76,8 @@ class VarFile:
                        encoding='ISO-8859-1',
                        index=False)
 
-    def output_excel(self):
+    def output_files(self):
+
         # Create Excel sheet
         with Workbook(f'{self._jobName} Checklist.xlsx') as wb:
             ws = wb.add_worksheet()
@@ -103,7 +109,7 @@ class VarFile:
 
             # Footer
             ws.set_footer('&L&\"Calibri,Bold\"Data Processed by: _________________________'
-                          '&R&\"Calibri,Bold\"Proof Checked by: _________________________')
+                          '&R&\"Calibri,Bold\"QC by: _________________________')
 
             # Write data to worksheet
             ws.write('A3', 'FIELD', fmt_title)
@@ -127,13 +133,17 @@ def main():
     for idx, file in enumerate(files):
         try:
             job[idx] = VarFile(file)
-            remove(file)
-            pass
-        except Exception:
-            print(file + " is not formatted correctly")
+        except errors.ParserError:
+            print("Unable to process " + file)
             continue
-        job[idx].process_file()
-        job[idx].output_excel()
+        try:
+            job[idx].process_file()
+        except UnicodeEncodeError:
+            with open("Process Error.txt", "w") as text_file:
+                text_file.write('Encoding Error! Check for bad text in csv file\n')
+                text_file.write('Example: (â€™) instead of standard apostrophe(\')')
+            continue
+        job[idx].output_files()
         del job[idx]
 
 
