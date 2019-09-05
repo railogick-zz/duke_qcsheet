@@ -1,7 +1,9 @@
 # Python 3.7.2
 from csv import QUOTE_ALL
 from datetime import datetime
-from os import getcwd, path, listdir
+from os import getcwd, path, listdir, makedirs
+from shutil import copy2
+from typing import List, Dict
 
 from pandas import read_csv, errors
 from xlsxwriter import Workbook
@@ -19,8 +21,12 @@ class VarFile:
         self._jobNumber = self._fileName[:8]
         self._jobName = self._fileName[:-4]
         self._jobExt = self._fileName[-4:]
+        self._win_path = '//Xmf-server/jobs'
+        self._mac_path = '/Volumes/JOBS'
         self.record_count = 0
         self.proof_count = 0
+        self.head_values = []
+        self.record = []
 
         try:
             self.df = read_csv(self._filepath,
@@ -51,15 +57,14 @@ class VarFile:
 
         # If full record doesn't exist, get next full record minus pkg/con columns.
         if not self.record:
-            self.empty = self.df.columns.values[self.df.isin(['###']).any() |
-                                                self.df.isin(['***']).any()]
-            self.sublist = [x for x in self.head_values
-                            if x not in self.empty]
+            empty = self.df.columns.values[self.df.isin(['###']).any() |
+                                           self.df.isin(['***']).any()]
+            sublist = [x for x in self.head_values if x not in empty]
 
             # Loop to find longest record based on least amount of na values.
             x = 1
             while not self.record:
-                self.record = self.df.dropna(subset=self.sublist,
+                self.record = self.df.dropna(subset=sublist,
                                              thresh=len(self.head_values) - x).fillna('').head(1).values.tolist()
                 x += 1
 
@@ -75,6 +80,18 @@ class VarFile:
                        quoting=QUOTE_ALL,
                        encoding='ISO-8859-1',
                        index=False)
+
+        # Place copy of file in the Data folder on the server.
+        try:
+            job_folder = [x for x in listdir(self._win_path) if x.startswith(self._jobNumber)]
+            job_folder = f'{self._win_path}/{job_folder[0]}'
+        except IOError:
+            job_folder = [x for x in listdir(self._mac_path) if x.startswith(self._jobNumber)]
+            job_folder = f'{self._mac_path}/{job_folder[0]}'
+        data_folder = f'{job_folder}/Finals/Data'
+        if path.exists(job_folder):
+            makedirs(data_folder, exist_ok=True)
+            copy2(self._jobName + '.csv', data_folder)
 
     def output_files(self):
 
@@ -126,10 +143,10 @@ class VarFile:
 
 
 def main():
-    files = [p for p in listdir(getcwd())
-             if p.endswith(".csv") | p.endswith(".txt")]
+    files: List[str] = [p for p in listdir(getcwd())
+                        if p.endswith(".csv") | p.endswith(".txt")]
 
-    job = {}
+    job: Dict[int, VarFile] = {}
     for idx, file in enumerate(files):
         try:
             job[idx] = VarFile(file)
