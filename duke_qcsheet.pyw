@@ -9,9 +9,6 @@ from pandas import read_csv, errors
 from xlsxwriter import Workbook
 
 
-# DONE: Check for unicode errors:
-#      (ie: UnicodeEncodeError: 'latin-1' codec can't encode characters in position 52-55: ordinal not in range(256))
-
 class VarFile:
 
     def __init__(self, filepath):
@@ -84,14 +81,18 @@ class VarFile:
         # Place copy of file in the Data folder on the server.
         try:
             job_folder = [x for x in listdir(self._win_path) if x.startswith(self._jobNumber)]
-            job_folder = f'{self._win_path}/{job_folder[0]}'
+            if job_folder:
+                job_folder = f'{self._win_path}/{job_folder[0]}'
         except IOError:
             job_folder = [x for x in listdir(self._mac_path) if x.startswith(self._jobNumber)]
-            job_folder = f'{self._mac_path}/{job_folder[0]}'
-        data_folder = f'{job_folder}/Finals/Data'
-        if path.exists(job_folder):
-            makedirs(data_folder, exist_ok=True)
-            copy2(self._jobName + '.csv', data_folder)
+            if job_folder:
+                job_folder = f'{self._mac_path}/{job_folder[0]}'
+        else:
+            if job_folder:
+                data_folder = f'{job_folder}/Finals/Data'
+                if path.exists(job_folder):
+                    makedirs(data_folder, exist_ok=True)
+                    copy2(self._jobName + '.csv', data_folder)
 
     def output_files(self):
 
