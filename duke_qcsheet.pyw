@@ -10,6 +10,16 @@ from xlsxwriter import Workbook
 
 
 class VarFile:
+    """
+    PURPOSE: Import mailing list for cleanup and generate a job information sheet in Excel.
+    1. Remove completely empty Columns/Rows
+    2. Remove columns with no data.
+    3. Rename Header duplicates.
+    4. Remove leading/trailing whitespace in data
+    5. Get sample record with most populated fields.
+    6. Output data sheet to Excel with job information and sample record
+    7. Copy data file to xmf-server job folder if present (For Mac and PC Operating Systems).
+    """
 
     def __init__(self, filepath):
         # Set Job information
@@ -47,6 +57,7 @@ class VarFile:
         """
         self.df.dropna(how='all', inplace=True)
         self.df.dropna(axis=1, how='all', inplace=True)
+        self.df = self.df.apply(lambda x: x.str.strip())
         self.head_values = self.df.columns.values
 
         # Get record with all fields populated for sample
@@ -65,7 +76,7 @@ class VarFile:
                                              thresh=len(self.head_values) - x).fillna('').head(1).values.tolist()
                 x += 1
 
-        # Cleanup record list for display in Excel
+        # Cleanup record list for display in Excel (Limit chars to 40 to fit cells)
         self.record = self.record[0]
         for x in range(len(self.record)):
             self.record[x] = self.record[x][0:41]
