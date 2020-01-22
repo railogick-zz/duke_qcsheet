@@ -1,15 +1,15 @@
 # Python 3.7.2
-from csv import QUOTE_ALL
-from datetime import datetime
-from os import getcwd, path, listdir, makedirs
-from shutil import copy2
+import csv
+import datetime
+import os
+import shutil
 
-from pandas import read_csv, errors
-from reportlab.lib.pagesizes import letter
+import pandas
+import reportlab.lib.pagesizes
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 
-now = datetime.now()
+now = datetime.datetime.now()
 
 
 class VarFile:
@@ -21,13 +21,13 @@ class VarFile:
         self._mac_path = '/Volumes/JOBS'
 
         # Initialize filename information
-        self._fileName = path.basename(filepath)
+        self._fileName = os.path.basename(filepath)
         self._jobNumber = self._fileName[:8]
         self._jobName = self._fileName[:-4]
         self._jobExt = self._fileName[-4:]
 
         # Initialize pdf canvas and variables
-        self.c = canvas.Canvas(f'{self._jobName} Checklist.pdf', pagesize=letter)
+        self.c = canvas.Canvas(f'{self._jobName} Checklist.pdf', pagesize=reportlab.lib.pagesizes.letter)
         self.c.translate(inch * .5, inch * .5)
         self.left_margin = 0
         self.right_margin = 7.5*inch
@@ -41,9 +41,9 @@ class VarFile:
 
         # import .csv file from BCC (as string to keep leading 0's in zip codes and other numerical fields)
         try:
-            self.df = read_csv(self._filepath, engine='python', quotechar='"', sep=",", dtype=str)
-        except errors.ParserError:
-            self.df = read_csv(self._filepath, engine='python', quotechar='"', sep='\t', dtype=str)
+            self.df = pandas.read_csv(self._filepath, engine='python', quotechar='"', sep=",", dtype=str)
+        except pandas.errors.ParserError:
+            self.df = pandas.read_csv(self._filepath, engine='python', quotechar='"', sep='\t', dtype=str)
 
         # Create list of empty columns that will be dropped
         self.empty_columns = self.df.columns[self.df.isna().all()].tolist()
@@ -82,27 +82,26 @@ class VarFile:
 
         # Create new .csv file
         self.df.to_csv(self._jobName + '.csv', sep=',', quotechar='"',
-                       quoting=QUOTE_ALL, encoding='ISO-8859-1', index=False)
+                       quoting=csv.QUOTE_ALL, encoding='ISO-8859-1', index=False)
 
         # Place copy of file in the Data folder on the server.
         try:
-            job_folder = [x for x in listdir(self._win_path) if x.startswith(self._jobNumber)]
+            job_folder = [x for x in os.listdir(self._win_path) if x.startswith(self._jobNumber)]
             if job_folder:
                 job_folder = f'{self._win_path}/{job_folder[0]}'
         except IOError:
-            job_folder = [x for x in listdir(self._mac_path) if x.startswith(self._jobNumber)]
+            job_folder = [x for x in os.listdir(self._mac_path) if x.startswith(self._jobNumber)]
             if job_folder:
                 job_folder = f'{self._mac_path}/{job_folder[0]}'
         else:
             if job_folder:
                 data_folder = f'{job_folder}/Finals/Data'
-                if path.exists(job_folder):
-                    makedirs(data_folder, exist_ok=True)
-                    copy2(self._jobName + '.csv', data_folder)
+                if os.path.exists(job_folder):
+                    os.makedirs(data_folder, exist_ok=True)
+                    shutil.copy2(self._jobName + '.csv', data_folder)
 
     def output_pdf(self):
         # set 1/2 inch margins
-        # width, height = letter
         self.header()
         self.body()
         self.footer()
@@ -151,12 +150,12 @@ class VarFile:
 
 
 def main():
-    files = [p for p in listdir(getcwd()) if p.endswith(".csv") | p.endswith(".txt")]
+    files = [p for p in os.listdir(os.getcwd()) if p.endswith(".csv") | p.endswith(".txt")]
     job = {}
     for idx, file in enumerate(files):
         try:
             job[idx] = VarFile(file)
-        except errors.ParserError:
+        except pandas.errors.ParserError:
             print("Unable to process " + file)
             continue
         try:
